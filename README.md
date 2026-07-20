@@ -6,7 +6,7 @@ A single-file browser tool for filtering and sorting a wine spreadsheet using pl
 
 ## Why build it this way
 
-This tool intentionally doesn't call any AI model at runtime — it's plain JavaScript pattern-matching, not an AI agent. That's deliberate: at work, it's not yet clear whether an AI assistant with API/token access would be allowed to operate on a computer and edit Excel files directly, and getting that approved could take a while. Building this as a single local HTML file sidesteps the question entirely — no API key, no AI account, nothing to review or approve, since there's no AI involved once it's built. It also means using it is free and doesn't draw down any Claude/AI license or seat, since everything runs in the browser off hand-written rules. If direct AI access to spreadsheets does get approved later, this can be revisited — for now, it gets most of the value without the wait.
+This tool intentionally doesn't call any AI model at runtime, it's plain JavaScript pattern-matching, not an AI agent. With work computers, unsure if privacy access would allow an active AI agent to make changes to files on computers. Building this as a single local HTML file sidesteps the question entirely, no API key, no AI account, nothing to review or approve, since there's no AI involved once it's built. It also means using it is free and doesn't draw down any Claude/AI license, since everything runs in the browser off hand-written rules. 
 
 ## How to use it
 
@@ -61,4 +61,4 @@ The parser auto-detects columns by header name (case-insensitive), accepting a f
 | Price | Price, Cost |
 | Rating | Rating, Score, Points |
 
-If a real spreadsheet uses different headers, or has extra columns (e.g. bottle size, importer, tasting notes), the detection logic — and possibly the filter patterns — will need a small update. Send over a real sample and this can be tuned exactly.
+
