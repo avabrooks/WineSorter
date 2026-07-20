@@ -1,8 +1,8 @@
 # Wine Organizer
 
-A single-file browser tool for filtering and sorting a wine spreadsheet using plain-English prompts. No install, no server, no account — open the HTML file and it runs entirely in your browser.
+A single-file browser tool for filtering and sorting a wine spreadsheet using plain-English prompts. 
 
-**Status: prototype.** It ships with a 55-row sample wine list so it's usable out of the box. It hasn't been wired up to a real wine spreadsheet yet — the column-matching will need a pass once we have one.
+**Status: prototype.** It ships with a 55-row sample wine list. It hasn't been connected up to the real wine spreadsheet yet.
 
 ## How to use it
 
@@ -23,7 +23,6 @@ A single-file browser tool for filtering and sorting a wine spreadsheet using pl
 
 ## How it works
 
-No AI calls, no API key, nothing leaves your browser. Three pieces:
 
 - **Reading the file** — [SheetJS](https://sheetjs.com/) (loaded from a CDN) parses the uploaded `.xlsx`/`.csv` into a plain array of row objects.
 - **The prompt parser** — a JavaScript function lowercases the prompt and runs it through a series of regex checks:
@@ -34,7 +33,6 @@ No AI calls, no API key, nothing leaves your browser. Three pieces:
   - Sort — patterns like "sorted by price", "cheapest first", "highest rated first", "newest first".
 - **Rendering + export** — matching rows are redrawn into the table; the download button hands the current filtered array back to SheetJS to write a new `.xlsx`.
 
-It's rule-based, not a language model — it only recognizes the patterns above (plus the pairing dictionary below). Anything phrased very differently won't be understood.
 
 ### Food pairing / occasion / style dictionary
 
@@ -44,7 +42,7 @@ Some phrases don't map to anything literally in the spreadsheet — "goes with w
 - **Occasions/mood** — celebration, summer/patio, cozy/winter, date night, brunch, gift/splurge, budget-friendly.
 - **Style descriptors** — light/crisp, bold/full-bodied, smooth/mellow, sweet, dry, fruity.
 
-Each entry suggests candidate Type/Grape values (or a price ceiling / rating floor), matched against whatever values actually exist in your data. These only fill in gaps — if the prompt already says "red" or names a grape directly, that always wins over an inferred suggestion. This is intentionally hardcoded rather than AI-driven, which keeps it free and dependency-free, but it only understands the phrases explicitly listed in the dictionary — extending it just means adding another entry (see the comment above `PAIRING_DICTIONARY` in the code).
+Each entry suggests candidate Type/Grape values (or a price ceiling / rating floor), matched against whatever values actually exist in your data. These only fill in gaps, if the prompt already says "red" or names a grape directly, that always wins over an inferred suggestion.
 
 ## Column matching
 
@@ -62,9 +60,3 @@ The parser auto-detects columns by header name (case-insensitive), accepting a f
 | Rating | Rating, Score, Points |
 
 If a real spreadsheet uses different headers, or has extra columns (e.g. bottle size, importer, tasting notes), the detection logic — and possibly the filter patterns — will need a small update. Send over a real sample and this can be tuned exactly.
-
-## Known limitations
-
-- Rule-based parsing only understands the patterns listed above, not open-ended natural language.
-- Sorting/filtering happens on a copy shown in the browser tab — it doesn't rewrite the original file. "Download results as Excel" saves the current view as a *new* file.
-- Built and tested against a synthetic sample dataset, not the real wine list yet.
