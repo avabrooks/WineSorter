@@ -1,8 +1,12 @@
 # Wine Organizer
 
-A single-file browser tool for filtering and sorting a wine spreadsheet using plain-English prompts. 
+A single-file browser tool for filtering and sorting a wine spreadsheet using plain-English prompts.
 
 **Status: prototype.** It ships with a 55-row sample wine list. It hasn't been connected up to the real wine spreadsheet yet.
+
+## Why build it this way
+
+This tool intentionally doesn't call any AI model at runtime — it's plain JavaScript pattern-matching, not an AI agent. That's deliberate: at work, it's not yet clear whether an AI assistant with API/token access would be allowed to operate on a computer and edit Excel files directly, and getting that approved could take a while. Building this as a single local HTML file sidesteps the question entirely — no API key, no AI account, nothing to review or approve, since there's no AI involved once it's built. It also means using it is free and doesn't draw down any Claude/AI license or seat, since everything runs in the browser off hand-written rules. If direct AI access to spreadsheets does get approved later, this can be revisited — for now, it gets most of the value without the wait.
 
 ## How to use it
 
@@ -23,7 +27,6 @@ A single-file browser tool for filtering and sorting a wine spreadsheet using pl
 
 ## How it works
 
-
 - **Reading the file** — [SheetJS](https://sheetjs.com/) (loaded from a CDN) parses the uploaded `.xlsx`/`.csv` into a plain array of row objects.
 - **The prompt parser** — a JavaScript function lowercases the prompt and runs it through a series of regex checks:
   - Country / Type / Grape / Region — matched against the *actual unique values* found in your data, not a hardcoded list. Color synonyms are recognized too (e.g. "rosé", "pink", "bubbly", "sweet").
@@ -32,7 +35,6 @@ A single-file browser tool for filtering and sorting a wine spreadsheet using pl
   - Vintage — patterns like "after 2018", "before 2015", or a bare 4-digit year.
   - Sort — patterns like "sorted by price", "cheapest first", "highest rated first", "newest first".
 - **Rendering + export** — matching rows are redrawn into the table; the download button hands the current filtered array back to SheetJS to write a new `.xlsx`.
-
 
 ### Food pairing / occasion / style dictionary
 
