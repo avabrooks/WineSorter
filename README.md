@@ -27,18 +27,18 @@ This tool intentionally doesn't call any AI model at runtime, it's plain JavaScr
 
 ## How it works
 
-- **Reading the file** — [SheetJS](https://sheetjs.com/) (loaded from a CDN) parses the uploaded `.xlsx`/`.csv` into a plain array of row objects.
-- **The prompt parser** — a JavaScript function lowercases the prompt and runs it through a series of regex checks:
+- **Reading the file** — [SheetJS](https://sheetjs.com/) parses the uploaded `.xlsx`/`.csv` into a plain array of row objects.
+- **The prompt parser** — a JavaScript function lowercases the prompt and runs it through a series of checks:
   - Country / Type / Grape / Region — matched against the *actual unique values* found in your data, not a hardcoded list. Color synonyms are recognized too (e.g. "rosé", "pink", "bubbly", "sweet").
-  - Price — patterns like "under $30", "over $50", "between $20 and $40".
-  - Rating — patterns like "rated above 95", "over 90 points", "90+ points".
-  - Vintage — patterns like "after 2018", "before 2015", or a bare 4-digit year.
-  - Sort — patterns like "sorted by price", "cheapest first", "highest rated first", "newest first".
+  - Price: patterns like "under $30", "over $50", "between $20 and $40".
+  - Rating: patterns like "rated above 95", "over 90 points", "90+ points".
+  - Vintage: patterns like "after 2018", "before 2015", or a bare 4-digit year.
+  - Sort: patterns like "sorted by price", "cheapest first", "highest rated first", "newest first".
 - **Rendering + export** — matching rows are redrawn into the table; the download button hands the current filtered array back to SheetJS to write a new `.xlsx`.
 
 ### Food pairing / occasion / style dictionary
 
-Some phrases don't map to anything literally in the spreadsheet — "goes with white fish," "for a celebration," "budget-friendly." For these, there's a hand-written dictionary (`PAIRING_DICTIONARY` in the script) of keyword → suggestion mappings, covering three categories:
+Some phrases don't map to anything literally in the spreadsheet such as "goes with white fish," "for a celebration," "budget-friendly." For these, there's a hand-written dictionary (`PAIRING_DICTIONARY` in the script) of keyword → suggestion mappings, covering three categories:
 
 - **Food pairings** — fish/seafood, shellfish, sushi, steak/red meat, lamb, pork, chicken, turkey, pasta, pizza, spicy food, BBQ, cheese, chocolate/dessert, salad, mushroom/earthy dishes.
 - **Occasions/mood** — celebration, summer/patio, cozy/winter, date night, brunch, gift/splurge, budget-friendly.
