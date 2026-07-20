@@ -84,7 +84,11 @@
       <code>white wines from Italy or Spain sorted by rating</code> &nbsp;
       <code>sparkling, top rated first</code> &nbsp;
       <code>malbec over 90 points, cheapest first</code> &nbsp;
-      <code>anything from Argentina after 2018</code>
+      <code>anything from Argentina after 2018</code> &nbsp;
+      <code>something that goes great with white fish</code> &nbsp;
+      <code>a bold red for steak night</code> &nbsp;
+      <code>something budget-friendly for a casual weeknight</code> &nbsp;
+      <code>a sparkling wine for a celebration</code>
     </div>
   </div>
 
@@ -123,6 +127,80 @@ const TYPE_SYNONYMS = {
   sparkling: ["sparkling","bubbly","champagne","prosecco","cava"],
   dessert: ["dessert","sweet","late harvest","port","ice wine"],
 };
+
+// Hard-coded knowledge base for prompts that aren't literal spreadsheet values —
+// food pairings, occasions, and style words. Each entry: keywords that trigger it,
+// and what it suggests (candidate Type/Grape values, a price ceiling, or a rating floor).
+// Type/Grape suggestions only kick in when the prompt didn't already state a type or
+// grape directly (see hadDirectType/hadDirectGrape below), so an explicit "red wine"
+// always wins over an inferred pairing. Add more entries here any time.
+const PAIRING_DICTIONARY = [
+  // --- Food pairings ---
+  { label:"fish/seafood", keywords:["white fish","fish","seafood","sole","cod","halibut","flounder","trout"],
+    types:["White","Sparkling"], grapes:["Sauvignon Blanc","Pinot Grigio","Albarino","Chardonnay","Riesling"] },
+  { label:"shellfish", keywords:["shellfish","shrimp","crab","lobster","oysters","scallops","clams"],
+    types:["Sparkling","White"], grapes:["Chardonnay","Albarino","Riesling"] },
+  { label:"sushi", keywords:["sushi","sashimi","raw fish","poke"],
+    types:["Sparkling","White"], grapes:["Riesling","Sauvignon Blanc"] },
+  { label:"salmon/fatty fish", keywords:["salmon","tuna","fatty fish"],
+    types:["White","Rose","Red"], grapes:["Pinot Noir","Chardonnay"] },
+  { label:"steak/red meat", keywords:["steak","red meat","beef","filet","ribeye","prime rib"],
+    types:["Red"], grapes:["Cabernet Sauvignon","Malbec","Syrah","Tempranillo","Zinfandel"] },
+  { label:"lamb", keywords:["lamb"],
+    types:["Red"], grapes:["Syrah","Tempranillo","Cabernet Sauvignon"] },
+  { label:"pork", keywords:["pork","ham","pork chop","pork belly"],
+    types:["Red","White"], grapes:["Pinot Noir","Tempranillo","Riesling","Chenin Blanc"] },
+  { label:"chicken/poultry", keywords:["chicken","poultry","roast chicken"],
+    types:["White","Red"], grapes:["Chardonnay","Viognier","Pinot Noir"] },
+  { label:"turkey/holiday dinner", keywords:["turkey","thanksgiving","holiday dinner","holiday meal"],
+    types:["White","Red","Sparkling"], grapes:["Chardonnay","Viognier","Pinot Noir"] },
+  { label:"pasta/tomato", keywords:["pasta","tomato sauce","marinara","spaghetti","lasagna","red sauce"],
+    types:["Red"], grapes:["Sangiovese","Grenache","Tempranillo"] },
+  { label:"pizza", keywords:["pizza"],
+    types:["Red","Sparkling"], grapes:["Sangiovese","Grenache"] },
+  { label:"spicy food", keywords:["spicy food","spicy","curry","thai food","indian food","szechuan","kimchi"],
+    types:["White","Sparkling","Rose"], grapes:["Riesling","Chenin Blanc"] },
+  { label:"bbq/grilled", keywords:["bbq","barbecue","grilled","burgers","ribs","brisket"],
+    types:["Red"], grapes:["Zinfandel","Syrah","Malbec","Grenache"] },
+  { label:"cheese board", keywords:["cheese","cheese board","charcuterie","charcuterie board"],
+    types:["Red","White"], grapes:["Cabernet Sauvignon","Sangiovese","Chardonnay"] },
+  { label:"chocolate/dessert", keywords:["chocolate","dessert","cake","sweets","tiramisu"],
+    types:["Dessert","Red"], grapes:["Zinfandel","Semillon","Muscat"] },
+  { label:"salad/veggie", keywords:["salad","vegetables","vegetarian","veggie","veggies"],
+    types:["White","Rose"], grapes:["Sauvignon Blanc","Albarino"] },
+  { label:"mushroom/earthy", keywords:["mushroom","mushrooms","earthy","truffle"],
+    types:["Red"], grapes:["Pinot Noir","Nebbiolo"] },
+
+  // --- Occasions / mood ---
+  { label:"celebration", keywords:["celebration","toast","anniversary","special occasion","engagement","wedding"],
+    types:["Sparkling"], ratingMin:92 },
+  { label:"summer/patio", keywords:["picnic","summer","patio","poolside","warm weather","backyard"],
+    types:["White","Rose","Sparkling"] },
+  { label:"cozy/winter", keywords:["cozy","winter","fireplace","cold night","cold weather"],
+    types:["Red"], grapes:["Cabernet Sauvignon","Syrah","Malbec"] },
+  { label:"date night", keywords:["date night","romantic"],
+    types:["Sparkling","Rose","Red"] },
+  { label:"brunch", keywords:["brunch","mimosa","mimosas"],
+    types:["Sparkling"] },
+  { label:"gift/splurge", keywords:["gift","impress","fancy","splurge","treat myself"],
+    ratingMin:93 },
+  { label:"budget-friendly", keywords:["budget","cheap","inexpensive","affordable","everyday","casual weeknight","bargain"],
+    priceMax:15 },
+
+  // --- Style / body descriptors ---
+  { label:"light/crisp", keywords:["crisp","light bodied","light-bodied","refreshing"],
+    types:["White","Sparkling"] },
+  { label:"bold/full-bodied", keywords:["bold","full bodied","full-bodied","robust","big red"],
+    types:["Red"], grapes:["Cabernet Sauvignon","Syrah","Malbec","Zinfandel","Nebbiolo"] },
+  { label:"smooth/mellow", keywords:["smooth","mellow","easy drinking","easy-drinking"],
+    grapes:["Merlot","Pinot Noir","Tempranillo"] },
+  { label:"sweet", keywords:["sweet wine","dessert wine"],
+    types:["Dessert"] },
+  { label:"dry", keywords:["dry wine","bone dry","dry"],
+    excludeTypes:["Dessert"] },
+  { label:"fruity", keywords:["fruity","fruit forward","fruit-forward"],
+    grapes:["Zinfandel","Grenache","Malbec","Riesling"] },
+];
 
 function detectColumns(rows){
   const map = {};
@@ -188,6 +266,9 @@ function parseAndApply(prompt){
   const p = " " + prompt.toLowerCase().trim() + " ";
   let rows = rawRows.slice();
   const notes = [];
+  // Tracks whether the prompt already stated these directly, so the pairing
+  // dictionary below only fills in gaps instead of overriding explicit words.
+  let hadDirectType = false, hadDirectGrape = false, hadExplicitPrice = false, hadExplicitRating = false;
 
   // ---- Type / color ----
   if(colMap.type){
@@ -210,6 +291,7 @@ function parseAndApply(prompt){
       if(actualMatches.length){
         rows = rows.filter(r => actualMatches.includes(String(r[colMap.type])));
         notes.push(`<b>Type</b>: ${actualMatches.join(" or ")}`);
+        hadDirectType = true;
       }
     }
   }
@@ -241,6 +323,7 @@ function parseAndApply(prompt){
     if(matched.length){
       rows = rows.filter(r => matched.includes(String(r[colMap.grape])));
       notes.push(`<b>Grape</b>: ${matched.join(" or ")}`);
+      hadDirectGrape = true;
     }
   }
 
@@ -258,14 +341,17 @@ function parseAndApply(prompt){
       const lo = parseFloat(m[1]), hi = parseFloat(m[2]);
       rows = rows.filter(r => r[colMap.price] >= lo && r[colMap.price] <= hi);
       notes.push(`<b>Price</b>: $${lo}–$${hi}`);
+      hadExplicitPrice = true;
     } else if((m = p.match(new RegExp(NOT_RATING_WORD + "(?:under|below|less than|cheaper than|up to)\\s*\\$?(\\d+(?:\\.\\d+)?)\\b" + NOT_POINTS)))){
       const max = parseFloat(m[1]);
       rows = rows.filter(r => r[colMap.price] <= max);
       notes.push(`<b>Price</b>: ≤ $${max}`);
+      hadExplicitPrice = true;
     } else if((m = p.match(new RegExp(NOT_RATING_WORD + "(?:over|above|more than|pricier than|at least)\\s*\\$?(\\d+(?:\\.\\d+)?)\\b" + NOT_POINTS)))){
       const min = parseFloat(m[1]);
       rows = rows.filter(r => r[colMap.price] >= min);
       notes.push(`<b>Price</b>: ≥ $${min}`);
+      hadExplicitPrice = true;
     }
   }
 
@@ -277,10 +363,55 @@ function parseAndApply(prompt){
       const min = parseInt(m[1] || m[2] || m[3]);
       rows = rows.filter(r => r[colMap.rating] >= min);
       notes.push(`<b>Rating</b>: ≥ ${min}`);
+      hadExplicitRating = true;
     } else if((m = p.match(/(?:rated|rating|scored?|score)\s*(?:below|under|less than)\s*(\d+)|(?:under|below|less than)\s*(\d+)\s*(?:points?|pts?)/))){
       const max = parseInt(m[1] || m[2]);
       rows = rows.filter(r => r[colMap.rating] <= max);
       notes.push(`<b>Rating</b>: ≤ ${max}`);
+      hadExplicitRating = true;
+    }
+  }
+
+  // ---- Food pairing / occasion / style (hard-coded dictionary) ----
+  // Fills in Type/Grape/Price/Rating from context clues the spreadsheet itself can't
+  // answer (e.g. "goes with white fish"). Only applies where the prompt didn't already
+  // say so directly, so an explicit "red wine under $20" always takes priority.
+  {
+    const hits = PAIRING_DICTIONARY.filter(entry => entry.keywords.some(k => wordMatch(p, k)));
+    if(hits.length){
+      const candidateTypes = new Set(), candidateGrapes = new Set(), excludeTypes = new Set();
+      let priceMaxHint = null, ratingMinHint = null;
+      const labels = [];
+      hits.forEach(h => {
+        (h.types || []).forEach(t => candidateTypes.add(t.toLowerCase()));
+        (h.grapes || []).forEach(g => candidateGrapes.add(g.toLowerCase()));
+        (h.excludeTypes || []).forEach(t => excludeTypes.add(t.toLowerCase()));
+        if(h.priceMax !== undefined) priceMaxHint = priceMaxHint === null ? h.priceMax : Math.min(priceMaxHint, h.priceMax);
+        if(h.ratingMin !== undefined) ratingMinHint = ratingMinHint === null ? h.ratingMin : Math.max(ratingMinHint, h.ratingMin);
+        if(h.label) labels.push(h.label);
+      });
+
+      if(!hadDirectType && !hadDirectGrape && (candidateTypes.size || candidateGrapes.size) && (colMap.type || colMap.grape)){
+        const actualTypes = colMap.type ? uniqueValues(rawRows, colMap.type).filter(t => candidateTypes.has(t.toLowerCase())) : [];
+        const actualGrapes = colMap.grape ? uniqueValues(rawRows, colMap.grape).filter(g => candidateGrapes.has(g.toLowerCase())) : [];
+        if(actualTypes.length || actualGrapes.length){
+          rows = rows.filter(r =>
+            (actualTypes.length && actualTypes.includes(String(r[colMap.type]))) ||
+            (actualGrapes.length && actualGrapes.includes(String(r[colMap.grape])))
+          );
+        }
+      }
+      if(excludeTypes.size && colMap.type){
+        const actualExclude = uniqueValues(rawRows, colMap.type).filter(t => excludeTypes.has(t.toLowerCase()));
+        if(actualExclude.length) rows = rows.filter(r => !actualExclude.includes(String(r[colMap.type])));
+      }
+      if(priceMaxHint !== null && !hadExplicitPrice && colMap.price){
+        rows = rows.filter(r => r[colMap.price] <= priceMaxHint);
+      }
+      if(ratingMinHint !== null && !hadExplicitRating && colMap.rating){
+        rows = rows.filter(r => r[colMap.rating] >= ratingMinHint);
+      }
+      if(labels.length) notes.push(`<b>Matched to</b>: ${labels.join(", ")}`);
     }
   }
 
