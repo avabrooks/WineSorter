@@ -117,12 +117,12 @@ let colMap = {};        // canonical -> actual header name found in this dataset
 let currentRows = [];   // currently displayed (filtered/sorted) rows
 
 const HEADER_SYNONYMS = {
-  name:    ["wine name","name","wine","label","product"],
+  name:    ["wine name","name","wine","label","product", "wines"],
   country: ["country","origin","nation"],
   region:  ["region","appellation","area"],
   type:    ["type","color","colour","wine type","style"],
   grape:   ["grape","varietal","variety"],
-  vintage: ["vintage","year"],
+  vintage: ["vintage","year", "years"],
   price:   ["price","cost","$"],
   rating:  ["rating","score","points"],
 };
@@ -195,7 +195,7 @@ const PAIRING_DICTIONARY = [
     priceMax:15 },
 
   // --- Style / body descriptors ---
-  { label:"light/crisp", keywords:["crisp","light bodied","light-bodied","refreshing"],
+  { label:"light/crisp", keywords:["crisp","light bodied","light-bodied", "light", "refreshing"],
     types:["White","Sparkling"] },
   { label:"bold/full-bodied", keywords:["bold","full bodied","full-bodied","robust","big red"],
     types:["Red"], grapes:["Cabernet Sauvignon","Syrah","Malbec","Zinfandel","Nebbiolo"] },
