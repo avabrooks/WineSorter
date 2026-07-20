@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Wine Organizer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --wine:#7b1e3a; --wine-dark:#5a1329; --cream:#faf6ef; --ink:#2b2320;
+    --line:#e3d9cc; --muted:#8a7d6d; --good:#3f7d5c;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    background:var(--cream); color:var(--ink); margin:0; padding:32px 20px 60px;
+  }
+  .wrap{max-width:1000px;margin:0 auto;}
+  h1{font-size:24px;margin:0 0 4px;color:var(--wine-dark);}
+  .sub{color:var(--muted);margin:0 0 24px;font-size:14px;}
+  .panel{
+    background:#fff;border:1px solid var(--line);border-radius:12px;
+    padding:20px;margin-bottom:18px;
+  }
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  input[type=text]{
+    flex:1;min-width:260px;padding:12px 14px;border:1px solid var(--line);
+    border-radius:8px;font-size:15px;background:#fdfbf8;
+  }
+  button{
+    background:var(--wine);color:#fff;border:none;border-radius:8px;
+    padding:12px 18px;font-size:14px;cursor:pointer;font-weight:600;
+    white-space:nowrap;
+  }
+  button:hover{background:var(--wine-dark);}
+  button.secondary{background:#fff;color:var(--wine);border:1px solid var(--wine);}
+  button.secondary:hover{background:#f6ecef;}
+  .dropzone{
+    border:2px dashed var(--line);border-radius:10px;padding:18px;text-align:center;
+    color:var(--muted);font-size:13px;cursor:pointer;margin-bottom:12px;
+  }
+  .dropzone.drag{border-color:var(--wine);background:#fbf1f4;}
+  .examples{font-size:12.5px;color:var(--muted);margin-top:10px;line-height:1.7;}
+  .examples code{background:#f2ece2;padding:1px 6px;border-radius:4px;color:var(--ink);}
+  .interpretation{
+    font-size:13px;background:#f6f1e6;border:1px solid var(--line);border-radius:8px;
+    padding:10px 14px;margin-top:14px;color:#5c4b33;display:none;
+  }
+  .interpretation b{color:var(--wine-dark);}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;}
+  th{background:#f6f1e6;color:var(--wine-dark);font-weight:700;position:sticky;top:0;}
+  tr:hover td{background:#fbf8f2;}
+  .meta-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .count{font-size:13px;color:var(--muted);}
+  .empty{padding:30px;text-align:center;color:var(--muted);}
+  .status{font-size:12.5px;color:var(--good);margin-top:6px;min-height:16px;}
+  .filename{font-size:12.5px;color:var(--muted);margin-left:6px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Wine Organizer</h1>
+
+  <div class="panel">
+    <div class="dropzone" id="dropzone">
+      Drop a spreadsheet here (.xlsx or .csv)
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none;">
+    </div>
+    <div class="row">
+      <button class="secondary" id="loadSampleBtn" type="button">Load sample data</button>
+      <span class="filename" id="fileLabel">Currently showing: sample wine list (55 wines)</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <input type="text" id="promptInput" placeholder="e.g. red wines from France under $30 sorted by price">
+      <button id="applyBtn" type="button">Apply</button>
+      <button class="secondary" id="resetBtn" type="button">Reset</button>
+    </div>
+    <div class="interpretation" id="interpretation"></div>
+    <div class="examples">
+      Try: <code>red wines under $20</code> &nbsp;
+      <code>white wines from Italy or Spain sorted by rating</code> &nbsp;
+      <code>sparkling, top rated first</code> &nbsp;
+      <code>malbec over 90 points, cheapest first</code> &nbsp;
+      <code>anything from Argentina after 2018</code>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="meta-row">
+      <span class="count" id="resultCount"></span>
+      <button class="secondary" id="downloadBtn" type="button">Download results as Excel</button>
+    </div>
+    <div id="tableHost"></div>
+    <div class="status" id="status"></div>
+  </div>
+</div>
+
+<script>
+const SAMPLE_DATA = [{"Wine Name": "Amber Fields Malbec 2018", "Country": "Portugal", "Region": "Douro", "Type": "Red", "Grape": "Malbec", "Vintage": 2018, "Price": 15.36, "Rating": 94}, {"Wine Name": "Coastal Bend Chenin 2015", "Country": "Germany", "Region": "Mosel", "Type": "Sparkling", "Grape": "Chenin Blanc", "Vintage": 2015, "Price": 10.19, "Rating": 92}, {"Wine Name": "Falcon's Rest Nebbiolo 2021", "Country": "France", "Region": "Rhone Valley", "Type": "Red", "Grape": "Nebbiolo", "Vintage": 2021, "Price": 13.89, "Rating": 96}, {"Wine Name": "Golden Valley Riesling 2019", "Country": "France", "Region": "Burgundy", "Type": "White", "Grape": "Riesling", "Vintage": 2019, "Price": 17.57, "Rating": 89}, {"Wine Name": "Bright Star Sangiovese 2020", "Country": "Italy", "Region": "Sicily", "Type": "Red", "Grape": "Sangiovese", "Vintage": 2020, "Price": 31.72, "Rating": 95}, {"Wine Name": "Windswept Chardonnay 2019", "Country": "Germany", "Region": "Mosel", "Type": "White", "Grape": "Chardonnay", "Vintage": 2019, "Price": 56.65, "Rating": 97}, {"Wine Name": "Blackbird Cabernet 2018", "Country": "South Africa", "Region": "Stellenbosch", "Type": "Red", "Grape": "Cabernet Sauvignon", "Vintage": 2018, "Price": 69.48, "Rating": 97}, {"Wine Name": "Moonlit Zinfandel 2020", "Country": "Italy", "Region": "Sicily", "Type": "Red", "Grape": "Zinfandel", "Vintage": 2020, "Price": 11.55, "Rating": 94}, {"Wine Name": "Redwood Pinot 2018", "Country": "Portugal", "Region": "Douro", "Type": "Sparkling", "Grape": "Pinot Noir", "Vintage": 2018, "Price": 11.79, "Rating": 98}, {"Wine Name": "Hidden Springs Semillon 2015", "Country": "Germany", "Region": "Mosel", "Type": "Dessert", "Grape": "Semillon", "Vintage": 2015, "Price": 8.32, "Rating": 89}, {"Wine Name": "Sable Ridge Grenache 2020", "Country": "Argentina", "Region": "Mendoza", "Type": "Red", "Grape": "Grenache", "Vintage": 2020, "Price": 12.99, "Rating": 98}, {"Wine Name": "Amber Fields Malbec 2017", "Country": "Portugal", "Region": "Vinho Verde", "Type": "Red", "Grape": "Malbec", "Vintage": 2017, "Price": 13.61, "Rating": 88}, {"Wine Name": "Wild Rose Chenin 2020", "Country": "South Africa", "Region": "Swartland", "Type": "Sparkling", "Grape": "Chenin Blanc", "Vintage": 2020, "Price": 17.98, "Rating": 92}, {"Wine Name": "Hidden Springs Pinot 2017", "Country": "Italy", "Region": "Tuscany", "Type": "Red", "Grape": "Pinot Noir", "Vintage": 2017, "Price": 49.78, "Rating": 85}, {"Wine Name": "Vintner's Reserve Viognier 2019", "Country": "Australia", "Region": "Yarra Valley", "Type": "White", "Grape": "Viognier", "Vintage": 2019, "Price": 151.77, "Rating": 84}, {"Wine Name": "Amber Fields Semillon 2016", "Country": "Italy", "Region": "Veneto", "Type": "Dessert", "Grape": "Semillon", "Vintage": 2016, "Price": 9.58, "Rating": 84}, {"Wine Name": "Silver Creek Grenache 2019", "Country": "Argentina", "Region": "Mendoza", "Type": "Rose", "Grape": "Grenache", "Vintage": 2019, "Price": 52.77, "Rating": 87}, {"Wine Name": "Emerald Slope Grenache 2020", "Country": "Chile", "Region": "Maipo Valley", "Type": "Rose", "Grape": "Grenache", "Vintage": 2020, "Price": 19.9, "Rating": 89}, {"Wine Name": "Crescent Bay Syrah 2016", "Country": "Argentina", "Region": "Mendoza", "Type": "Red", "Grape": "Syrah", "Vintage": 2016, "Price": 12.86, "Rating": 85}, {"Wine Name": "Twin Oaks Zinfandel 2017", "Country": "Germany", "Region": "Mosel", "Type": "Red", "Grape": "Zinfandel", "Vintage": 2017, "Price": 16.72, "Rating": 90}, {"Wine Name": "Blackbird Tempranillo 2020", "Country": "Germany", "Region": "Mosel", "Type": "Red", "Grape": "Tempranillo", "Vintage": 2020, "Price": 26.8, "Rating": 85}, {"Wine Name": "Redwood Chardonnay 2018", "Country": "Spain", "Region": "Rioja", "Type": "White", "Grape": "Chardonnay", "Vintage": 2018, "Price": 18.12, "Rating": 95}, {"Wine Name": "Wild Rose Cabernet 2020", "Country": "France", "Region": "Burgundy", "Type": "Red", "Grape": "Cabernet Sauvignon", "Vintage": 2020, "Price": 10.38, "Rating": 94}, {"Wine Name": "Twin Oaks Grenache 2022", "Country": "Spain", "Region": "Priorat", "Type": "Red", "Grape": "Grenache", "Vintage": 2022, "Price": 12.73, "Rating": 90}, {"Wine Name": "Stone Ridge Semillon 2020", "Country": "Italy", "Region": "Tuscany", "Type": "Dessert", "Grape": "Semillon", "Vintage": 2020, "Price": 25.94, "Rating": 95}, {"Wine Name": "Twin Oaks Tempranillo 2020", "Country": "Portugal", "Region": "Douro", "Type": "Red", "Grape": "Tempranillo", "Vintage": 2020, "Price": 38.82, "Rating": 87}, {"Wine Name": "Old Vine Tempranillo 2017", "Country": "Germany", "Region": "Rheingau", "Type": "Red", "Grape": "Tempranillo", "Vintage": 2017, "Price": 10.5, "Rating": 98}, {"Wine Name": "Blackbird Nebbiolo 2015", "Country": "New Zealand", "Region": "Marlborough", "Type": "Red", "Grape": "Nebbiolo", "Vintage": 2015, "Price": 158.0, "Rating": 97}, {"Wine Name": "Hidden Springs Pinot 2018", "Country": "USA", "Region": "Paso Robles", "Type": "White", "Grape": "Pinot Grigio", "Vintage": 2018, "Price": 66.59, "Rating": 86}, {"Wine Name": "Rustic Barrel Zinfandel 2019", "Country": "France", "Region": "Loire Valley", "Type": "Red", "Grape": "Zinfandel", "Vintage": 2019, "Price": 34.27, "Rating": 96}, {"Wine Name": "Rustic Barrel Syrah 2019", "Country": "Portugal", "Region": "Vinho Verde", "Type": "Red", "Grape": "Syrah", "Vintage": 2019, "Price": 8.58, "Rating": 95}, {"Wine Name": "Foggy Bottom Chardonnay 2015", "Country": "France", "Region": "Provence", "Type": "White", "Grape": "Chardonnay", "Vintage": 2015, "Price": 26.55, "Rating": 97}, {"Wine Name": "Blackbird Grenache 2017", "Country": "USA", "Region": "Napa Valley", "Type": "Rose", "Grape": "Grenache", "Vintage": 2017, "Price": 8.68, "Rating": 97}, {"Wine Name": "Highland Pinot 2015", "Country": "Australia", "Region": "Barossa Valley", "Type": "Sparkling", "Grape": "Pinot Noir", "Vintage": 2015, "Price": 25.13, "Rating": 93}, {"Wine Name": "Redwood Syrah 2020", "Country": "Germany", "Region": "Rheingau", "Type": "Red", "Grape": "Syrah", "Vintage": 2020, "Price": 11.96, "Rating": 94}, {"Wine Name": "Golden Valley Chenin 2016", "Country": "Argentina", "Region": "Uco Valley", "Type": "White", "Grape": "Chenin Blanc", "Vintage": 2016, "Price": 14.21, "Rating": 93}, {"Wine Name": "Blackbird Pinot 2017", "Country": "Italy", "Region": "Piedmont", "Type": "Rose", "Grape": "Pinot Noir", "Vintage": 2017, "Price": 153.68, "Rating": 98}, {"Wine Name": "Foggy Bottom Zinfandel 2019", "Country": "Chile", "Region": "Casablanca Valley", "Type": "Red", "Grape": "Zinfandel", "Vintage": 2019, "Price": 34.78, "Rating": 94}, {"Wine Name": "Emerald Slope Pinot 2016", "Country": "France", "Region": "Provence", "Type": "Rose", "Grape": "Pinot Noir", "Vintage": 2016, "Price": 82.76, "Rating": 85}, {"Wine Name": "Falcon's Rest Malbec 2018", "Country": "Italy", "Region": "Piedmont", "Type": "Red", "Grape": "Malbec", "Vintage": 2018, "Price": 42.13, "Rating": 94}, {"Wine Name": "Whispering Hill Cabernet 2016", "Country": "Argentina", "Region": "Uco Valley", "Type": "Red", "Grape": "Cabernet Sauvignon", "Vintage": 2016, "Price": 32.1, "Rating": 84}, {"Wine Name": "Rustic Barrel Semillon 2017", "Country": "Chile", "Region": "Maipo Valley", "Type": "Dessert", "Grape": "Semillon", "Vintage": 2017, "Price": 54.31, "Rating": 90}, {"Wine Name": "Cedar Hollow Pinot 2015", "Country": "France", "Region": "Bordeaux", "Type": "Red", "Grape": "Pinot Noir", "Vintage": 2015, "Price": 55.39, "Rating": 86}, {"Wine Name": "Vintner's Reserve Sangiovese 2015", "Country": "USA", "Region": "Napa Valley", "Type": "Red", "Grape": "Sangiovese", "Vintage": 2015, "Price": 42.35, "Rating": 87}, {"Wine Name": "Rolling Hills Syrah 2017", "Country": "Italy", "Region": "Veneto", "Type": "Rose", "Grape": "Syrah", "Vintage": 2017, "Price": 92.49, "Rating": 86}, {"Wine Name": "Falcon's Rest Pinot 2020", "Country": "USA", "Region": "Paso Robles", "Type": "Red", "Grape": "Pinot Noir", "Vintage": 2020, "Price": 49.41, "Rating": 94}, {"Wine Name": "Twin Oaks Merlot 2021", "Country": "Spain", "Region": "Ribera del Duero", "Type": "Red", "Grape": "Merlot", "Vintage": 2021, "Price": 65.05, "Rating": 87}, {"Wine Name": "Moonlit Syrah 2018", "Country": "New Zealand", "Region": "Central Otago", "Type": "Red", "Grape": "Syrah", "Vintage": 2018, "Price": 9.93, "Rating": 89}, {"Wine Name": "Whispering Hill Albarino 2021", "Country": "Italy", "Region": "Veneto", "Type": "White", "Grape": "Albarino", "Vintage": 2021, "Price": 32.34, "Rating": 89}, {"Wine Name": "Amber Fields Grenache 2019", "Country": "Italy", "Region": "Veneto", "Type": "Red", "Grape": "Grenache", "Vintage": 2019, "Price": 13.97, "Rating": 89}, {"Wine Name": "Misty Vale Chardonnay 2021", "Country": "Chile", "Region": "Casablanca Valley", "Type": "Sparkling", "Grape": "Chardonnay", "Vintage": 2021, "Price": 41.65, "Rating": 84}, {"Wine Name": "Copper Ridge Cinsault 2020", "Country": "Australia", "Region": "Barossa Valley", "Type": "Rose", "Grape": "Cinsault", "Vintage": 2020, "Price": 34.13, "Rating": 98}, {"Wine Name": "Hidden Springs Riesling 2019", "Country": "South Africa", "Region": "Swartland", "Type": "Dessert", "Grape": "Riesling", "Vintage": 2019, "Price": 29.34, "Rating": 89}, {"Wine Name": "Highland Tempranillo 2021", "Country": "Argentina", "Region": "Mendoza", "Type": "Red", "Grape": "Tempranillo", "Vintage": 2021, "Price": 33.35, "Rating": 93}, {"Wine Name": "Coastal Bend Grenache 2019", "Country": "Argentina", "Region": "Uco Valley", "Type": "Rose", "Grape": "Grenache", "Vintage": 2019, "Price": 12.3, "Rating": 93}];
+
+let rawRows = [];      // array of row objects, keys = original headers
+let colMap = {};        // canonical -> actual header name found in this dataset
+let currentRows = [];   // currently displayed (filtered/sorted) rows
+
+const HEADER_SYNONYMS = {
+  name:    ["wine name","name","wine","label","product"],
+  country: ["country","origin","nation"],
+  region:  ["region","appellation","area"],
+  type:    ["type","color","colour","wine type","style"],
+  grape:   ["grape","varietal","variety"],
+  vintage: ["vintage","year"],
+  price:   ["price","cost","$"],
+  rating:  ["rating","score","points"],
+};
+
+const TYPE_SYNONYMS = {
+  red: ["red"],
+  white: ["white"],
+  rose: ["rose","rosé","pink","blush"],
+  sparkling: ["sparkling","bubbly","champagne","prosecco","cava"],
+  dessert: ["dessert","sweet","late harvest","port","ice wine"],
+};
+
+function detectColumns(rows){
+  const map = {};
+  if(!rows.length) return map;
+  const headers = Object.keys(rows[0]);
+  for(const canon in HEADER_SYNONYMS){
+    const syns = HEADER_SYNONYMS[canon];
+    const found = headers.find(h => syns.includes(h.trim().toLowerCase()));
+    if(found) map[canon] = found;
+  }
+  return map;
+}
+
+function uniqueValues(rows, headerKey){
+  if(!headerKey) return [];
+  const set = new Set();
+  rows.forEach(r => { if(r[headerKey] !== undefined && r[headerKey] !== null && r[headerKey] !== "") set.add(String(r[headerKey])); });
+  return Array.from(set).sort((a,b)=>b.length-a.length);
+}
+
+function escapeRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"); }
+
+function wordMatch(promptLower, value){
+  const re = new RegExp("\\b"+escapeRegex(value.toLowerCase())+"\\b");
+  return re.test(promptLower);
+}
+
+function loadRows(rows){
+  rawRows = rows;
+  colMap = detectColumns(rows);
+  currentRows = rows.slice();
+  renderTable(currentRows);
+  document.getElementById("interpretation").style.display = "none";
+  document.getElementById("promptInput").value = "";
+}
+
+function renderTable(rows){
+  const host = document.getElementById("tableHost");
+  const countEl = document.getElementById("resultCount");
+  countEl.textContent = rows.length + " wine" + (rows.length===1?"":"s");
+  if(!rows.length){
+    host.innerHTML = '<div class="empty">No wines match that prompt. Try loosening it up.</div>';
+    return;
+  }
+  const headers = Object.keys(rows[0]);
+  let html = "<table><thead><tr>";
+  headers.forEach(h => html += `<th>${h}</th>`);
+  html += "</tr></thead><tbody>";
+  rows.forEach(r => {
+    html += "<tr>";
+    headers.forEach(h => {
+      let v = r[h];
+      if(colMap.price && h===colMap.price && typeof v === "number") v = "$"+v.toFixed(2);
+      html += `<td>${v===undefined||v===null?"":v}</td>`;
+    });
+    html += "</tr>";
+  });
+  html += "</tbody></table>";
+  host.innerHTML = html;
+}
+
+function parseAndApply(prompt){
+  const p = " " + prompt.toLowerCase().trim() + " ";
+  let rows = rawRows.slice();
+  const notes = [];
+
+  // ---- Type / color ----
+  if(colMap.type){
+    const matchedTypes = [];
+    for(const canon in TYPE_SYNONYMS){
+      for(const syn of TYPE_SYNONYMS[canon]){
+        if(wordMatch(p, syn)){ matchedTypes.push(canon); break; }
+      }
+    }
+    if(matchedTypes.length){
+      const dataTypes = uniqueValues(rawRows, colMap.type);
+      const canonToActual = {};
+      dataTypes.forEach(dt => {
+        const dtl = dt.toLowerCase();
+        for(const canon in TYPE_SYNONYMS){
+          if(TYPE_SYNONYMS[canon].some(s => dtl.includes(s))) canonToActual[canon] = dt;
+        }
+      });
+      const actualMatches = [...new Set(matchedTypes.map(c => canonToActual[c]).filter(Boolean))];
+      if(actualMatches.length){
+        rows = rows.filter(r => actualMatches.includes(String(r[colMap.type])));
+        notes.push(`<b>Type</b>: ${actualMatches.join(" or ")}`);
+      }
+    }
+  }
+
+  // ---- Country ----
+  if(colMap.country){
+    const countries = uniqueValues(rawRows, colMap.country);
+    const matched = countries.filter(c => wordMatch(p, c));
+    if(matched.length){
+      rows = rows.filter(r => matched.includes(String(r[colMap.country])));
+      notes.push(`<b>Country</b>: ${matched.join(" or ")}`);
+    }
+  }
+
+  // ---- Region ----
+  if(colMap.region){
+    const regions = uniqueValues(rawRows, colMap.region);
+    const matched = regions.filter(c => wordMatch(p, c));
+    if(matched.length){
+      rows = rows.filter(r => matched.includes(String(r[colMap.region])));
+      notes.push(`<b>Region</b>: ${matched.join(" or ")}`);
+    }
+  }
+
+  // ---- Grape ----
+  if(colMap.grape){
+    const grapes = uniqueValues(rawRows, colMap.grape);
+    const matched = grapes.filter(g => wordMatch(p, g) || wordMatch(p, g.split(" ")[0]));
+    if(matched.length){
+      rows = rows.filter(r => matched.includes(String(r[colMap.grape])));
+      notes.push(`<b>Grape</b>: ${matched.join(" or ")}`);
+    }
+  }
+
+  // ---- Price ----
+  // Negative lookahead excludes numbers that are actually a rating ("over 90 points"),
+  // so a bare number followed by "point(s)/pts" is never mistaken for a price. The \b after
+  // the digit stops the regex from backtracking into the middle of a number (e.g. matching
+  // just "9" out of "90 points"). The lookbehind stops "rated above 95" from being read as
+  // a price filter instead of a rating filter.
+  const NOT_POINTS = "(?!\\s*(?:points?|pts?|\\/100|out of))";
+  const NOT_RATING_WORD = "(?<!\\brated\\s)(?<!\\brating\\s)(?<!\\bscored\\s)(?<!\\bscore\\s)";
+  if(colMap.price){
+    let m;
+    if((m = p.match(new RegExp("between\\s*\\$?(\\d+(?:\\.\\d+)?)\\b\\s*(?:and|-|to)\\s*\\$?(\\d+(?:\\.\\d+)?)\\b" + NOT_POINTS)))){
+      const lo = parseFloat(m[1]), hi = parseFloat(m[2]);
+      rows = rows.filter(r => r[colMap.price] >= lo && r[colMap.price] <= hi);
+      notes.push(`<b>Price</b>: $${lo}–$${hi}`);
+    } else if((m = p.match(new RegExp(NOT_RATING_WORD + "(?:under|below|less than|cheaper than|up to)\\s*\\$?(\\d+(?:\\.\\d+)?)\\b" + NOT_POINTS)))){
+      const max = parseFloat(m[1]);
+      rows = rows.filter(r => r[colMap.price] <= max);
+      notes.push(`<b>Price</b>: ≤ $${max}`);
+    } else if((m = p.match(new RegExp(NOT_RATING_WORD + "(?:over|above|more than|pricier than|at least)\\s*\\$?(\\d+(?:\\.\\d+)?)\\b" + NOT_POINTS)))){
+      const min = parseFloat(m[1]);
+      rows = rows.filter(r => r[colMap.price] >= min);
+      notes.push(`<b>Price</b>: ≥ $${min}`);
+    }
+  }
+
+  // ---- Rating ----
+  // Accepts "rated/rating/scored above X" as well as bare "over 90 points" / "90+ points".
+  if(colMap.rating){
+    let m;
+    if((m = p.match(/(?:rated|rating|scored?|score)\s*(?:above|over|at least)\s*(\d+)|(?:over|above|more than|at least)\s*(\d+)\s*(?:points?|pts?)|(\d+)\s*\+\s*(?:points?|pts?)/))){
+      const min = parseInt(m[1] || m[2] || m[3]);
+      rows = rows.filter(r => r[colMap.rating] >= min);
+      notes.push(`<b>Rating</b>: ≥ ${min}`);
+    } else if((m = p.match(/(?:rated|rating|scored?|score)\s*(?:below|under|less than)\s*(\d+)|(?:under|below|less than)\s*(\d+)\s*(?:points?|pts?)/))){
+      const max = parseInt(m[1] || m[2]);
+      rows = rows.filter(r => r[colMap.rating] <= max);
+      notes.push(`<b>Rating</b>: ≤ ${max}`);
+    }
+  }
+
+  // ---- Vintage ----
+  if(colMap.vintage){
+    let m;
+    if((m = p.match(/(?:after|since|newer than)\s*(\d{4})/))){
+      const min = parseInt(m[1]);
+      rows = rows.filter(r => r[colMap.vintage] >= min);
+      notes.push(`<b>Vintage</b>: ${min} or later`);
+    } else if((m = p.match(/(?:before|older than)\s*(\d{4})/))){
+      const max = parseInt(m[1]);
+      rows = rows.filter(r => r[colMap.vintage] <= max);
+      notes.push(`<b>Vintage</b>: before ${max}`);
+    } else if((m = p.match(/\b(\d{4})\b/))){
+      const yr = parseInt(m[1]);
+      if(yr >= 1900 && yr <= 2100){
+        rows = rows.filter(r => r[colMap.vintage] === yr);
+        notes.push(`<b>Vintage</b>: ${yr}`);
+      }
+    }
+  }
+
+  // ---- Sort ----
+  let sortField = null, sortDir = null, sortLabel = "";
+  const wantsAsc = /\bascending\b|\basc\b/.test(p);
+  const wantsDesc = /\bdescending\b|\bdesc\b/.test(p);
+
+  if(colMap.price && /cheapest first|lowest price first|by price.*asc/.test(p)){
+    sortField = colMap.price; sortDir = "asc"; sortLabel = "Price (low → high)";
+  } else if(colMap.price && /most expensive first|priciest first|highest price first/.test(p)){
+    sortField = colMap.price; sortDir = "desc"; sortLabel = "Price (high → low)";
+  } else if(colMap.rating && /(top|best|highest) rated|best first/.test(p)){
+    sortField = colMap.rating; sortDir = "desc"; sortLabel = "Rating (high → low)";
+  } else if(colMap.rating && /lowest rated first|worst first/.test(p)){
+    sortField = colMap.rating; sortDir = "asc"; sortLabel = "Rating (low → high)";
+  } else if(colMap.vintage && /newest first|most recent first/.test(p)){
+    sortField = colMap.vintage; sortDir = "desc"; sortLabel = "Vintage (newest first)";
+  } else if(colMap.vintage && /oldest first/.test(p)){
+    sortField = colMap.vintage; sortDir = "asc"; sortLabel = "Vintage (oldest first)";
+  } else if(colMap.name && /alphabetical|by name/.test(p)){
+    sortField = colMap.name; sortDir = "asc"; sortLabel = "Name (A→Z)";
+  } else if(colMap.price && /sort(?:ed)? by price|order(?:ed)? by price/.test(p)){
+    sortField = colMap.price; sortDir = wantsDesc ? "desc" : "asc";
+    sortLabel = "Price (" + (sortDir==="asc"?"low → high":"high → low") + ")";
+  } else if(colMap.rating && /sort(?:ed)? by rating|order(?:ed)? by rating/.test(p)){
+    sortField = colMap.rating; sortDir = wantsAsc ? "asc" : "desc";
+    sortLabel = "Rating (" + (sortDir==="asc"?"low → high":"high → low") + ")";
+  } else if(colMap.vintage && /sort(?:ed)? by vintage|order(?:ed)? by vintage|sort(?:ed)? by year/.test(p)){
+    sortField = colMap.vintage; sortDir = wantsAsc ? "asc" : "desc";
+    sortLabel = "Vintage (" + (sortDir==="asc"?"oldest first":"newest first") + ")";
+  }
+
+  if(sortField){
+    rows.sort((a,b) => {
+      const av = a[sortField], bv = b[sortField];
+      if(av < bv) return sortDir==="asc" ? -1 : 1;
+      if(av > bv) return sortDir==="asc" ? 1 : -1;
+      return 0;
+    });
+    notes.push(`<b>Sorted by</b>: ${sortLabel}`);
+  }
+
+  const interp = document.getElementById("interpretation");
+  if(notes.length){
+    interp.innerHTML = "Applying — " + notes.join(" &nbsp;•&nbsp; ");
+    interp.style.display = "block";
+  } else {
+    interp.innerHTML = "Didn't recognize any filters or sort in that prompt — showing everything.";
+    interp.style.display = "block";
+  }
+
+  currentRows = rows;
+  renderTable(rows);
+}
+
+// ---- File handling ----
+function handleWorkbookArrayBuffer(data, filename){
+  try{
+    const wb = XLSX.read(data, {type:"array"});
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(sheet, {defval:""});
+    loadRows(json);
+    document.getElementById("fileLabel").textContent = "Currently showing: " + filename + " (" + json.length + " rows)";
+    document.getElementById("status").textContent = "Loaded " + filename + ".";
+  }catch(e){
+    document.getElementById("status").textContent = "Couldn't read that file: " + e.message;
+  }
+}
+
+document.getElementById("fileInput").addEventListener("change", function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt){ handleWorkbookArrayBuffer(new Uint8Array(evt.target.result), file.name); };
+  reader.readAsArrayBuffer(file);
+});
+
+const dz = document.getElementById("dropzone");
+dz.addEventListener("click", () => document.getElementById("fileInput").click());
+dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("drag"); });
+dz.addEventListener("dragleave", () => dz.classList.remove("drag"));
+dz.addEventListener("drop", e => {
+  e.preventDefault(); dz.classList.remove("drag");
+  const file = e.dataTransfer.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt){ handleWorkbookArrayBuffer(new Uint8Array(evt.target.result), file.name); };
+  reader.readAsArrayBuffer(file);
+});
+
+document.getElementById("loadSampleBtn").addEventListener("click", () => {
+  loadRows(JSON.parse(JSON.stringify(SAMPLE_DATA)));
+  document.getElementById("fileLabel").textContent = "Currently showing: sample wine list (" + SAMPLE_DATA.length + " wines)";
+  document.getElementById("status").textContent = "Sample data loaded.";
+});
+
+document.getElementById("applyBtn").addEventListener("click", () => {
+  parseAndApply(document.getElementById("promptInput").value);
+});
+document.getElementById("promptInput").addEventListener("keydown", e => {
+  if(e.key === "Enter") parseAndApply(e.target.value);
+});
+document.getElementById("resetBtn").addEventListener("click", () => {
+  document.getElementById("promptInput").value = "";
+  document.getElementById("interpretation").style.display = "none";
+  currentRows = rawRows.slice();
+  renderTable(currentRows);
+});
+document.getElementById("downloadBtn").addEventListener("click", () => {
+  if(!currentRows.length){ document.getElementById("status").textContent = "Nothing to download."; return; }
+  const ws = XLSX.utils.json_to_sheet(currentRows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Filtered Wines");
+  XLSX.writeFile(wb, "filtered_wines.xlsx");
+});
+
+// init
+loadRows(JSON.parse(JSON.stringify(SAMPLE_DATA)));
+</script>
+</body>
+</html>
