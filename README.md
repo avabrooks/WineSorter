@@ -4,7 +4,7 @@ A single-file browser tool for filtering and sorting a wine spreadsheet using pl
 
 **Status: prototype.** It ships with a 55-row sample wine list. It hasn't been connected up to the real wine spreadsheet yet.
 
-## Why build it this way
+## Build Design
 
 This tool intentionally doesn't call any AI model at runtime, it's plain JavaScript pattern-matching, not an AI agent. With work computers, unsure if privacy access would allow an active AI agent to make changes to files on computers. Building this as a single local HTML file sidesteps the question entirely, no API key, no AI account, nothing to review or approve, since there's no AI involved once it's built. It also means using it is free and doesn't draw down any Claude/AI license, since everything runs in the browser off hand-written rules. 
 
